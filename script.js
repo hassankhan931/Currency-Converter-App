@@ -1,43 +1,62 @@
-const input=document.getElementById("input");
-const addBtn=document.getElementById("addBtn");
-const taskContainer=document.getElementById("task-container");
+const API_URL = "https://v6.exchangerate-api.com/v6/faf2fae22ed4ea0bfc03b0f8/latest";
 
-window.addEventListener("DOMContentLoaded",()=>{
-const savedTasks=JSON.parse(localStorage.getItem("tasks"))||[];
-savedTasks.forEach(text=>createTask(text));
+const dropdowns = document.querySelectorAll("select");
+const btn = document.querySelector("form button");
+const fromCurr = document.querySelector(".from select");
+const toCurr = document.querySelector(".to select");
+const msg = document.querySelector(".msg");
+
+const currencyCodes = Object.keys(countryList);
+
+dropdowns.forEach((select) => {
+  currencyCodes.forEach((code) => {
+    let option = document.createElement("option");
+    option.value = code;
+    option.innerText = code;
+    if (select.name === "from" && code === "USD") option.selected = true;
+    if (select.name === "to" && code === "PKR") option.selected = true;
+    select.appendChild(option);
+  });
+
+  select.addEventListener("change", (e) => {
+    updateFlag(e.target);
+  });
 });
 
-function addTask(){
-const taskText=input.value.trim();
-if(taskText==="")return;
-createTask(taskText);
-input.value="";
-updateLocalStorage();
+function updateFlag(element) {
+  let currencyCode = element.value;
+  let countryCode = countryList[currencyCode];
+  let img = element.parentElement.querySelector("img");
+  img.src = `https://flagsapi.com/${countryCode}/flat/64.png`;
 }
 
-function createTask(text){
-const task=document.createElement("div");
-task.className="task-item";
-const taskLabel=document.createElement("span");
-taskLabel.textContent="📝 "+text;
-const deleteBtn=document.createElement("button");
-deleteBtn.textContent="Delete";
-deleteBtn.onclick=()=>{
-task.remove();
-updateLocalStorage();
-};
-task.appendChild(taskLabel);
-task.appendChild(deleteBtn);
-taskContainer.appendChild(task);
+async function updateExchangeRate() {
+  let amountInput = document.querySelector(".amount input");
+  let amt = parseFloat(amountInput.value) || 1;
+  amountInput.value = amt;
+
+  const from = fromCurr.value;
+  const to = toCurr.value;
+
+  const url = `${API_URL}/${from}`;
+
+  try {
+    const response = await fetch(url);
+    const data = await response.json();
+    const rate = data.conversion_rates[to];
+    const converted = (amt * rate).toFixed(2);
+    msg.innerText = `${amt} ${from} = ${converted} ${to}`;
+  } catch (err) {
+    msg.innerText = "Failed to fetch exchange rate.";
+  }
 }
 
-function updateLocalStorage(){
-const tasks=Array.from(document.querySelectorAll(".task-item span"))
-.map(task=>task.textContent.replace("📝 ",""));
-localStorage.setItem("tasks",JSON.stringify(tasks));
-}
+btn.addEventListener("click", (e) => {
+  e.preventDefault();
+  updateExchangeRate();
+});
 
-addBtn.addEventListener("click",addTask);
-input.addEventListener("keypress",e=>{
-if(e.key==="Enter")addTask();
+window.addEventListener("load", () => {
+  updateExchangeRate();
+  dropdowns.forEach(select => updateFlag(select));
 });
